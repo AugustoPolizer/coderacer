@@ -1,18 +1,8 @@
 use std::env;
 use std::fs;
 use std::process;
-use serde::{Deserialize, Serialize};
+use coderacer::Config;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Config {
-    tab_width: u32,
-}
-
-impl Config {
-    fn new() -> Config {
-        Config { tab_width: 4}
-    }
-}
 
 fn main() {
     let args_iter = env::args();
@@ -41,8 +31,6 @@ fn main() {
         }
     };
 
-    println!("{} {:?}", filename, config);
-
-    println!("{:?}", std::env::current_exe());
+    coderacer::run(&filename, &config);
 }
 
