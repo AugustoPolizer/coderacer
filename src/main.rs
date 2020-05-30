@@ -3,7 +3,6 @@ use std::fs;
 use std::process;
 use coderacer::Config;
 
-
 fn main() {
     let args_iter = env::args();
     
@@ -31,6 +30,9 @@ fn main() {
         }
     };
 
-    coderacer::run(&filename, &config);
+    match coderacer::run(&filename, &config) {
+        Err(e) => eprintln!("{}", e),
+        Ok(_) => ()
+    }
 }
 
