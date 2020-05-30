@@ -1,4 +1,6 @@
+
 use serde::{Deserialize, Serialize};
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -11,18 +13,16 @@ impl Config {
     }
 }
 
-pub fn run(filename: &str, config: &Config) -> Result<(), std::io::Error>{
-    let file_content = io::read_file(filename)?;
-    let buffer = io::parse_file(&file_content);
+pub fn run(filename: &str, _config: &Config) -> Result<(), std::io::Error>{
+    let file_content = file_preprocessing::read_file(filename)?;
+    let buffer = file_preprocessing::parse_file_to_buffer(&file_content);
 
-    println!("{:?}", config);
-    println!("{}", buffer[0]);
-    println!("{}", buffer[3]);
+    text_viewer::write_buffer_to_screen(& buffer)?;
 
     Ok(())
 }
 
-pub mod io {
+pub mod file_preprocessing{
     use std::fs;
 
     pub fn read_file(filename: &str) -> Result<String, std::io::Error >{
@@ -30,7 +30,7 @@ pub mod io {
         Ok(file_content) 
     }
 
-    pub fn parse_file<'a>(file_content: &'a str) -> Vec<&'a str>{
+    pub fn parse_file_to_buffer<'a>(file_content: &'a str) -> Vec<&'a str>{
         let mut buffer = Vec::new();
 
         for line in file_content.lines() {
@@ -38,4 +38,20 @@ pub mod io {
         }
         buffer
     }
- }
+}
+
+pub mod text_viewer {
+    extern crate termion;
+    use std::io::Write;
+
+    pub fn write_buffer_to_screen(buffer: & Vec<& str>) -> Result<(), std::io::Error>{
+        let stdout = std::io::stdout();
+        let mut handle = stdout.lock();
+        print!("{} {}", termion::clear::All, termion::cursor::Goto(1,1));
+        for lines in buffer {
+            handle.write(lines.as_bytes())?;
+            handle.write("\n".as_bytes())?;
+        } 
+        Ok(())
+    }
+}
