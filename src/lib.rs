@@ -15,14 +15,12 @@ impl Config {
 
 pub struct Screen {
     lines: u16,
-    cols: u16,
 }
 
 impl Screen {
     pub fn new() -> Result<Screen, io::Error> {
         let size = termion::terminal_size()?;
         Ok(Screen {
-            cols: size.0,
             lines: size.1,
         })
     }
@@ -74,10 +72,10 @@ mod input_layer {
                 Key::Char(c)   => {
                     let is_correct = game_operations::check_user_input(c, buffer, game);
                     if is_correct {
-                        game_operations::next_position(game, stdout)?;
+                        game_operations::next_position(buffer, game, stdout)?;
                     }
                 },
-                _ => println!("other"), 
+                _ => () 
             } 
         }  
         Ok(())
@@ -85,6 +83,7 @@ mod input_layer {
 }
 
 mod game_operations {
+
     use super::Game;
     use std::io::{Write, Stdout };
     use termion;
@@ -93,10 +92,25 @@ mod game_operations {
         if input == buffer[game.current_line].chars().nth(game.current_col).unwrap() { true } else { false } 
     }
 
-    pub fn next_position(game: & mut Game, stdout: & mut Stdout) -> Result<(), std::io::Error>{
-        game.cursor.0 += 1;
-        game.current_col += 1;
-        write!(stdout, "{}", termion::cursor::Right(1))?;
+    pub fn next_position(buffer: & Vec<String>, game: & mut Game, stdout: & mut Stdout) -> Result<(), std::io::Error> {
+        if game.current_col + 1 >= buffer[game.current_line].chars().count() {
+            // FIXME: Checar se o jogo acaba
+            // FIXME: Checar se o cursor vai se mover para fora da tela
+            loop{
+                game.current_col = 0;
+                game.current_line += 1;
+                game.cursor.1 += 1;
+                game.cursor.0 = 1;
+                if buffer[game.current_line].chars().count() != 0 {
+                    break;
+                }
+            }
+        } else {
+          game.current_col += 1;
+          game.cursor.0 += 1;
+        }
+
+        write!(stdout, "{}", termion::cursor::Goto(game.cursor.0, game.cursor.1))?;
         stdout.flush().unwrap();
         Ok(())
     }
