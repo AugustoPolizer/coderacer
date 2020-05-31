@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use termion::{raw::IntoRawMode, event::Key, input::TermRead};
-use std::io::{self, stdout, stdin};
+use termion::{raw::IntoRawMode};
+use std::io::{self, stdout, stdin, Write};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -13,10 +13,9 @@ impl Config {
     }
 }
 
-struct Screen {
-    rows: u16,
+pub struct Screen {
+    lines: u16,
     cols: u16,
-    cursor:(u16, u16)
 }
 
 impl Screen {
@@ -24,40 +23,83 @@ impl Screen {
         let size = termion::terminal_size()?;
         Ok(Screen {
             cols: size.0,
-            rows: size.1,
-            cursor: (1,1)
+            lines: size.1,
         })
     }
 }
 
+pub struct Game {
+    current_line: usize,
+    current_col: usize,
+    cursor:(u16, u16)
+}
 
-
-
+impl Game {
+    pub fn new() -> Game {
+        Game {
+            current_col: 0,
+            current_line:0,
+            cursor: (1,1)
+        }
+    }
+}
 pub fn run(filename: &str, config: &Config) -> Result<(), std::io::Error>{
     // Initializations  
     let buffer = file_processing::read_file_to_buffer(filename, config.tab_width)?;
     let screen = Screen::new()?;
+    let mut game = Game::new();
     let mut stdout = stdout().into_raw_mode()?;
 
-    print!("{} {}", termion::clear::All, termion::cursor::Goto(1,1));
-    text_viewer::refresh_screen(& mut stdout, &buffer, screen.rows, 0)?;
+    write!(stdout, "{} {}", termion::clear::All, termion::cursor::Goto(1,1))?;
+    text_viewer::refresh_screen(& mut stdout, &buffer, screen.lines, 0)?;
+    write!(stdout, "{}", termion::cursor::Goto(1,1))?;
+    stdout.flush().unwrap();
 
     let stdin = stdin(); 
-    input_layer(stdin);
+    input_layer::wait_input(stdin, & mut stdout, & mut game, & buffer)?;
     Ok(())
 }
 
+mod input_layer {
 
+    use termion::{event::Key, input::TermRead};
+    use std::io::{Stdin, Stdout}; 
+    use super::{ Game, game_operations};
 
-fn input_layer(stdin: io::Stdin) {
-  
-    for c in stdin.keys() {
-        match c.unwrap() {
-            Key::Ctrl('q') => break,
-            Key::Char(c)   => println!("{}", c),
-            _              => println!("Other"),
-        } 
-    }  
+    pub fn wait_input(stdin: Stdin, stdout: & mut Stdout, game: & mut Game, buffer: & Vec<String>) -> Result<(), std::io::Error>{
+
+        for c in stdin.keys() {
+            match c.unwrap() {
+                Key::Ctrl('q') => break,
+                Key::Char(c)   => {
+                    let is_correct = game_operations::check_user_input(c, buffer, game);
+                    if is_correct {
+                        game_operations::next_position(game, stdout)?;
+                    }
+                },
+                _ => println!("other"), 
+            } 
+        }  
+        Ok(())
+    }
+}
+
+mod game_operations {
+    use super::Game;
+    use std::io::{Write, Stdout };
+    use termion;
+    
+    pub fn check_user_input(input: char, buffer: & Vec<String>, game: & Game) -> bool {
+        if input == buffer[game.current_line].chars().nth(game.current_col).unwrap() { true } else { false } 
+    }
+
+    pub fn next_position(game: & mut Game, stdout: & mut Stdout) -> Result<(), std::io::Error>{
+        game.cursor.0 += 1;
+        game.current_col += 1;
+        write!(stdout, "{}", termion::cursor::Right(1))?;
+        stdout.flush().unwrap();
+        Ok(())
+    }
 }
 
 mod file_processing {
@@ -92,7 +134,7 @@ mod text_viewer {
     pub fn refresh_screen(stdout : & mut io::Stdout,buffer: & Vec<String>, screen_rows: u16, starting_row: u32)
         -> Result<(), std::io::Error> {
         let mut buffer_output = String::new(); 
-        for row_index in starting_row .. starting_row + screen_rows as u32 + 1{ 
+        for row_index in starting_row .. starting_row + screen_rows as u32 - 1 { 
             if row_index as usize >= buffer.len() {
                 break;
             }
