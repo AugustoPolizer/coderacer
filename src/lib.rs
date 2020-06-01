@@ -112,6 +112,7 @@ mod game_operations {
         }
     }
 
+    // TODO: Refatoração?
     pub fn next_position(
         buffer: &Vec<String>,
         game: &mut Game,
@@ -119,6 +120,7 @@ mod game_operations {
         screen: & mut Screen
     ) -> Result<bool, std::io::Error> {
 
+        // TODO: Implementar o scroll horizontal
         if game.current_col + 1 >= buffer[game.current_line].chars().count() {
             let mut lines_down = 0;
             loop {
@@ -127,12 +129,16 @@ mod game_operations {
                 }
                 lines_down += 1; 
                 game.current_line += 1;
+                // FIXME: Valor do cursor passando o limite de tela (Problema caso queria
+                // implementar movimentação para cima. 
                 game.cursor.1 += 1;
                 game.cursor.0 = 1;
                 if !buffer[game.current_line].is_empty() {
                     break;
                 }
             }
+            
+            // FIXME: Não atribuir skip_indentation direto para o cursor (Scroll horizontal)
             game.cursor.0 = skip_indentation(&buffer[game.current_line]);
             game.current_col = game.cursor.0 as usize - 1;
             if game.current_line > screen.lines as usize -1 {
